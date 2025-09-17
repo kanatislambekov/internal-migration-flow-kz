@@ -1,0 +1,241 @@
+region,month,arrivals,departures,net
+Abay,January,2636,3569,-933
+Abay,February,2270,2676,-406
+Abay,March,1785,2278,-493
+Abay,April,2174,2625,-451
+Abay,May,1942,2498,-556
+Abay,June,2137,2770,-633
+Abay,July,2339,3048,-709
+Abay,August,2096,2886,-790
+Abay,September,3077,3965,-888
+Abay,October,3312,4326,-1014
+Abay,November,3131,3929,-798
+Abay,December,2478,3159,-681
+Aqmola,January,4209,4693,-484
+Aqmola,February,3707,3980,-273
+Aqmola,March,3844,3982,-138
+Aqmola,April,3667,4009,-342
+Aqmola,May,3846,3920,-74
+Aqmola,June,4059,4059,0
+Aqmola,July,4134,4566,-432
+Aqmola,August,3832,4188,-356
+Aqmola,September,4872,5625,-753
+Aqmola,October,5326,5758,-432
+Aqmola,November,4740,5260,-520
+Aqmola,December,3931,4278,-347
+Aqtobe,January,4341,4709,-368
+Aqtobe,February,3715,3976,-261
+Aqtobe,March,3406,3667,-261
+Aqtobe,April,4259,4460,-201
+Aqtobe,May,4057,4227,-170
+Aqtobe,June,4502,4560,-58
+Aqtobe,July,5626,5644,-18
+Aqtobe,August,5505,5427,78
+Aqtobe,September,6768,7028,-260
+Aqtobe,October,6801,7151,-350
+Aqtobe,November,5650,6011,-361
+Aqtobe,December,4448,4811,-363
+Almaty region,January,13868,13986,-118
+Almaty region,February,12047,12035,12
+Almaty region,March,9598,9324,274
+Almaty region,April,11544,11016,528
+Almaty region,May,11410,10788,622
+Almaty region,June,9994,10054,-60
+Almaty region,July,10728,11084,-356
+Almaty region,August,10307,11169,-862
+Almaty region,September,14468,13742,726
+Almaty region,October,16741,15438,1303
+Almaty region,November,14874,14311,563
+Almaty region,December,12480,12472,8
+Atyrau,January,3913,4194,-281
+Atyrau,February,2993,3039,-46
+Atyrau,March,2381,2614,-233
+Atyrau,April,3314,3536,-222
+Atyrau,May,3024,3302,-278
+Atyrau,June,3056,3716,-660
+Atyrau,July,3679,4605,-926
+Atyrau,August,3519,4197,-678
+Atyrau,September,3169,3760,-591
+Atyrau,October,3905,4481,-576
+Atyrau,November,3235,3699,-464
+Atyrau,December,2623,3033,-410
+West Kazakhstan,January,3684,3983,-299
+West Kazakhstan,February,3039,3281,-242
+West Kazakhstan,March,2552,2724,-172
+West Kazakhstan,April,3462,3678,-216
+West Kazakhstan,May,3270,3550,-280
+West Kazakhstan,June,3229,3446,-217
+West Kazakhstan,July,4183,4416,-233
+West Kazakhstan,August,3992,4432,-440
+West Kazakhstan,September,5510,5971,-461
+West Kazakhstan,October,5974,6170,-196
+West Kazakhstan,November,4550,4837,-287
+West Kazakhstan,December,3953,4062,-109
+Jambyl,January,6497,8046,-1549
+Jambyl,February,4778,6194,-1416
+Jambyl,March,4009,4972,-963
+Jambyl,April,4532,5614,-1082
+Jambyl,May,4627,5758,-1131
+Jambyl,June,4226,5349,-1123
+Jambyl,July,4710,6269,-1559
+Jambyl,August,4096,5818,-1722
+Jambyl,September,5341,6970,-1629
+Jambyl,October,6085,7590,-1505
+Jambyl,November,5390,7104,-1714
+Jambyl,December,4364,5647,-1283
+Jetisu,January,4123,5384,-1261
+Jetisu,February,3229,4184,-955
+Jetisu,March,2646,3390,-744
+Jetisu,April,3191,4046,-855
+Jetisu,May,2921,3600,-679
+Jetisu,June,3157,3754,-597
+Jetisu,July,3302,4139,-837
+Jetisu,August,3087,3848,-761
+Jetisu,September,3861,4752,-891
+Jetisu,October,4349,5388,-1039
+Jetisu,November,3855,5077,-1222
+Jetisu,December,2981,4056,-1075
+Qaraganda,January,4626,5151,-525
+Qaraganda,February,3780,4264,-484
+Qaraganda,March,3445,3927,-482
+Qaraganda,April,3742,4182,-440
+Qaraganda,May,3800,4183,-383
+Qaraganda,June,3855,4353,-498
+Qaraganda,July,3987,4601,-614
+Qaraganda,August,4213,4587,-374
+Qaraganda,September,5316,5897,-581
+Qaraganda,October,5566,6047,-481
+Qaraganda,November,4763,5223,-460
+Qaraganda,December,4200,4574,-374
+Qostanay,January,3221,3713,-492
+Qostanay,February,2560,3047,-487
+Qostanay,March,2388,2871,-483
+Qostanay,April,2718,2984,-266
+Qostanay,May,2866,3241,-375
+Qostanay,June,3012,3492,-480
+Qostanay,July,3259,3814,-555
+Qostanay,August,3061,3546,-485
+Qostanay,September,3615,4320,-705
+Qostanay,October,4164,4731,-567
+Qostanay,November,3914,4390,-476
+Qostanay,December,3221,3527,-306
+Qyzylorda,January,3874,4677,-803
+Qyzylorda,February,2869,3651,-782
+Qyzylorda,March,2358,2991,-633
+Qyzylorda,April,2685,3372,-687
+Qyzylorda,May,2493,3078,-585
+Qyzylorda,June,2237,2951,-714
+Qyzylorda,July,3342,4184,-842
+Qyzylorda,August,3015,4061,-1046
+Qyzylorda,September,3533,4714,-1181
+Qyzylorda,October,3949,4970,-1021
+Qyzylorda,November,3402,4171,-769
+Qyzylorda,December,2834,3669,-835
+Mangystau,January,5021,5136,-115
+Mangystau,February,3692,3944,-252
+Mangystau,March,3158,3196,-38
+Mangystau,April,3771,3781,-10
+Mangystau,May,3723,3824,-101
+Mangystau,June,3887,3972,-85
+Mangystau,July,5340,5351,-11
+Mangystau,August,5628,5530,98
+Mangystau,September,5248,5557,-309
+Mangystau,October,5958,6191,-233
+Mangystau,November,5181,5235,-54
+Mangystau,December,4301,4321,-20
+Pavlodar,January,3045,3391,-346
+Pavlodar,February,2586,2885,-299
+Pavlodar,March,2315,2592,-277
+Pavlodar,April,2602,2891,-289
+Pavlodar,May,2468,2758,-290
+Pavlodar,June,2439,2845,-406
+Pavlodar,July,2897,3246,-349
+Pavlodar,August,2642,3135,-493
+Pavlodar,September,3435,3997,-562
+Pavlodar,October,3640,4156,-516
+Pavlodar,November,2860,3462,-602
+Pavlodar,December,2453,3190,-737
+North Kazakhstan,January,1738,2239,-501
+North Kazakhstan,February,1577,1915,-338
+North Kazakhstan,March,1520,1733,-213
+North Kazakhstan,April,2024,2212,-188
+North Kazakhstan,May,1466,1762,-296
+North Kazakhstan,June,1519,1915,-396
+North Kazakhstan,July,1716,2410,-694
+North Kazakhstan,August,1647,2291,-644
+North Kazakhstan,September,2352,2910,-558
+North Kazakhstan,October,2471,3004,-533
+North Kazakhstan,November,2198,2681,-483
+North Kazakhstan,December,1643,2053,-410
+Turkistan,January,13886,17720,-3834
+Turkistan,February,10753,12833,-2080
+Turkistan,March,7983,9794,-1811
+Turkistan,April,9730,11515,-1785
+Turkistan,May,8742,10568,-1826
+Turkistan,June,8631,10453,-1822
+Turkistan,July,9936,12708,-2772
+Turkistan,August,9101,11741,-2640
+Turkistan,September,11659,14720,-3061
+Turkistan,October,13965,17057,-3092
+Turkistan,November,12260,16044,-3784
+Turkistan,December,9576,13036,-3460
+Ulutay,January,878,1110,-232
+Ulutay,February,712,931,-219
+Ulutay,March,726,903,-177
+Ulutay,April,937,1104,-167
+Ulutay,May,787,934,-147
+Ulutay,June,809,964,-155
+Ulutay,July,782,1000,-218
+Ulutay,August,845,1028,-183
+Ulutay,September,1099,1334,-235
+Ulutay,October,1123,1520,-397
+Ulutay,November,1046,1268,-222
+Ulutay,December,812,976,-164
+East Kazakhstan,January,2876,3148,-272
+East Kazakhstan,February,2459,2639,-180
+East Kazakhstan,March,2043,2191,-148
+East Kazakhstan,April,2352,2512,-160
+East Kazakhstan,May,2517,2534,-17
+East Kazakhstan,June,2420,2621,-201
+East Kazakhstan,July,2406,2706,-300
+East Kazakhstan,August,2233,2521,-288
+East Kazakhstan,September,3213,3608,-395
+East Kazakhstan,October,3406,3651,-245
+East Kazakhstan,November,3014,3443,-429
+East Kazakhstan,December,2673,2833,-160
+Astana city,January,22750,17201,5549
+Astana city,February,19862,14978,4884
+Astana city,March,19224,14267,4957
+Astana city,April,19864,15488,4376
+Astana city,May,19362,15263,4099
+Astana city,June,21060,15620,5440
+Astana city,July,23651,16530,7121
+Astana city,August,22362,15058,7304
+Astana city,September,27738,18613,9125
+Astana city,October,29376,21724,7652
+Astana city,November,24674,17968,6706
+Astana city,December,21772,15745,6027
+Almaty city,January,20421,15835,4586
+Almaty city,February,17092,14110,2982
+Almaty city,March,14453,12834,1619
+Almaty city,April,17332,15287,2045
+Almaty city,May,17739,15716,2023
+Almaty city,June,17163,14668,2495
+Almaty city,July,18875,15125,3750
+Almaty city,August,19907,15797,4110
+Almaty city,September,21858,19310,2548
+Almaty city,October,24429,21921,2508
+Almaty city,November,23011,19324,3687
+Almaty city,December,20026,16317,3709
+Shymkent city,January,13793,11515,2278
+Shymkent city,February,11259,10417,842
+Shymkent city,March,8545,8129,416
+Shymkent city,April,10702,10290,412
+Shymkent city,May,9924,9480,444
+Shymkent city,June,8661,8491,170
+Shymkent city,July,9943,9389,554
+Shymkent city,August,8791,8619,172
+Shymkent city,September,10848,10187,661
+Shymkent city,October,12708,11974,734
+Shymkent city,November,13259,11570,1689
+Shymkent city,December,11222,10232,990
