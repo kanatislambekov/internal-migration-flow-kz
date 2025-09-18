@@ -51,19 +51,31 @@ MONTH_CHOICES = [
     "october",
     "november",
     "december",
-    "all",
 ]
+ALL_MONTH_CHOICE = "all"
+
+CITY_REGIONS = {"Astana city", "Almaty city", "Shymkent city"}
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--month",
-        default="all",
-        choices=MONTH_CHOICES,
+        default=ALL_MONTH_CHOICE,
+        choices=MONTH_CHOICES + [ALL_MONTH_CHOICE],
         help=(
             "Month to visualise. Use 'all' to aggregate January–December 2024 "
             "data into a single annual view."
+        ),
+    )
+    parser.add_argument(
+        "--months",
+        nargs="+",
+        choices=MONTH_CHOICES,
+        metavar="MONTH",
+        help=(
+            "One or more months to aggregate. Specify multiple values (e.g. "
+            "'--months january february') to pool several months together."
         ),
     )
     parser.add_argument(
@@ -72,25 +84,61 @@ def parse_args() -> argparse.Namespace:
         default=DEFAULT_OUTPUT,
         help="Path to the HTML file that will be generated.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.months and args.month != ALL_MONTH_CHOICE:
+        parser.error("Use either --month or --months, not both.")
+    return args
 
 
-def _load_data(month: str) -> Tuple[pd.DataFrame, str]:
+def _format_multi_month_label(months: list[str]) -> str:
+    titled = [month.title() for month in months]
+    if len(titled) == 1:
+        return f"{titled[0]} 2024"
+    if len(titled) == 2:
+        return f"{titled[0]} and {titled[1]} 2024"
+    return ", ".join(titled[:-1]) + f", and {titled[-1]} 2024"
+
+
+def _load_data(month_selection: str | list[str]) -> Tuple[pd.DataFrame, str]:
     data = pd.read_csv(DATA_DIR / "internal_migration_2024.csv")
     centroids = pd.read_csv(DATA_DIR / "region_centroids.csv")
 
-    month = month.lower()
-    if month == "all":
-        grouped = (
-            data.groupby("region", as_index=False)[["arrivals", "departures"]]
-            .sum()
-            .assign(month_label="January–December 2024")
-        )
+    if isinstance(month_selection, str):
+        month = month_selection.lower()
+        if month == ALL_MONTH_CHOICE:
+            grouped = (
+                data.groupby("region", as_index=False)[["arrivals", "departures"]]
+                .sum()
+                .assign(month_label="January–December 2024")
+            )
+        else:
+            grouped = (
+                data.loc[data["month"].str.lower() == month]
+                .copy()
+                .assign(month_label=lambda df: df["month"].str.title() + " 2024")
+            )
     else:
+        month_lookup = {name: idx for idx, name in enumerate(MONTH_CHOICES)}
+        selected = [month.lower() for month in month_selection]
+        unique_months: list[str] = []
+        seen = set()
+        for month in selected:
+            if month not in month_lookup:
+                raise ValueError(f"Unknown month provided: {month}")
+            if month not in seen:
+                unique_months.append(month)
+                seen.add(month)
+
+        sorted_months = sorted(unique_months, key=month_lookup.get)
+        mask = data["month"].str.lower().isin(sorted_months)
+        filtered = data.loc[mask].copy()
+        if filtered.empty:
+            raise ValueError("No data available for the selected months.")
+        label = _format_multi_month_label(sorted_months)
         grouped = (
-            data.loc[data["month"].str.lower() == month]
-            .copy()
-            .assign(month_label=lambda df: df["month"].str.title() + " 2024")
+            filtered.groupby("region", as_index=False)[["arrivals", "departures"]]
+            .sum()
+            .assign(month_label=label)
         )
 
     grouped = grouped.assign(net=grouped["arrivals"] - grouped["departures"])
@@ -142,6 +190,10 @@ def build_figure(data: pd.DataFrame, title: str, geojson: dict):
         "Net: %{customdata[3]:,}<extra></extra>"
     )
 
+    city_mask = data["region"].isin(CITY_REGIONS)
+    city_data = data.loc[city_mask]
+    city_customdata = city_data[["region", "arrivals", "departures", "net"]].to_numpy()
+
     max_abs_net = data["net"].abs().max()
     if max_abs_net == 0:
         max_abs_net = 1
@@ -160,20 +212,21 @@ def build_figure(data: pd.DataFrame, title: str, geojson: dict):
         showscale=False,
     )
 
-    fig.add_scattergeo(
-        lon=data["longitude"],
-        lat=data["latitude"],
-        customdata=customdata,
-        marker=dict(
-            size=data["symbol_size"],
-            color=data["net"],
-            coloraxis="coloraxis",
-            line=dict(width=0.6, color="#333"),
-        ),
-        hovertemplate=hover_template,
-        name="",
-        showlegend=False,
-    )
+    if not city_data.empty:
+        fig.add_scattergeo(
+            lon=city_data["longitude"],
+            lat=city_data["latitude"],
+            customdata=city_customdata,
+            marker=dict(
+                size=city_data["symbol_size"],
+                color=city_data["net"],
+                coloraxis="coloraxis",
+                line=dict(width=0.6, color="#333"),
+            ),
+            hovertemplate=hover_template,
+            name="",
+            showlegend=False,
+        )
 
     fig.update_geos(
         projection_type="mercator",
@@ -197,7 +250,13 @@ def build_figure(data: pd.DataFrame, title: str, geojson: dict):
 
 def main() -> None:
     args = parse_args()
-    data, title = _load_data(args.month)
+    month_selection: str | list[str]
+    if args.months:
+        month_selection = args.months
+    else:
+        month_selection = args.month
+
+    data, title = _load_data(month_selection)
     geojson = _load_geojson()
 
     output_path = args.output
