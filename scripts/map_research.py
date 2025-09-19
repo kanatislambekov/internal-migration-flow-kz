@@ -4,7 +4,7 @@ Internal Migration in Kazakhstan — Research Dashboard (2024, optional 2010)
 Sections:
 1) Opening Hook: hero map + one-line kicker.
 2) Context & Critical Insight: provocative question + placeholder for lit review.
-3) Data Storytelling: interactive map (hover), year toggle (2010 vs 2024 if available),
+3) Data Storytelling: interactive map (hover), year toggle (2022–2024, 2010 if available),
    OD Sankey (if data present), small charts (age/sex).
 4) Critical Themes: short commentary bullets.
 5) What-If: simple projection to 2030 with adjustable annual trend.
@@ -24,7 +24,7 @@ Data files (CSV, tidy):
 from __future__ import annotations
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -50,6 +50,13 @@ NAME_OVERRIDES = {
     "Turkistan": "Turkestan","Ulutay": "Ulytau",
 }
 
+MAP_CONFIG = dict(
+    scrollZoom=True,
+    doubleClick="reset",
+    modeBarButtonsToRemove=["pan2d", "select2d", "lasso2d", "autoScale2d"],
+    displaylogo=False,
+)
+
 # -------------------------
 # Utilities
 # -------------------------
@@ -69,7 +76,8 @@ def norm_regions_for_geojson(df: pd.DataFrame, geo: dict) -> pd.DataFrame:
     return df.assign(geo_region=geo_regions)
 
 def symbol_size(values: pd.Series) -> pd.Series:
-    return 8 + 0.25 * np.sqrt(values.abs())
+    """Return a smaller point size for city markers on the map."""
+    return 6 + 0.18 * np.sqrt(values.abs())
 
 def aggregate_months(df: pd.DataFrame, months: List[str]) -> pd.DataFrame:
     mask = df["month"].str.lower().isin(months)
@@ -87,25 +95,23 @@ def total_movers_text(df_annual: pd.DataFrame) -> str:
 # MAP with Year Toggle (frames)
 # -------------------------
 def build_map_with_year_toggle(
-    df24: pd.DataFrame, df10: Optional[pd.DataFrame], centroids: pd.DataFrame, geo: dict
+    datasets: Dict[str, pd.DataFrame], centroids: pd.DataFrame, geo: dict
 ) -> go.Figure:
-    # Pre-merge for both years
+    if not datasets:
+        raise ValueError("At least one annual dataset is required to render the map.")
+
     def prep(df_raw: pd.DataFrame, label: str) -> pd.DataFrame:
         annual = aggregate_months(df_raw, MONTHS).merge(centroids, on="region", how="left")
-        if annual[["latitude","longitude"]].isna().any().any():
-            miss = annual.loc[annual["latitude"].isna(),"region"].unique().tolist()
+        if annual[["latitude", "longitude"]].isna().any().any():
+            miss = annual.loc[annual["latitude"].isna(), "region"].unique().tolist()
             raise ValueError("Missing coordinates for: " + ", ".join(miss))
         annual = norm_regions_for_geojson(annual, geo)
         annual["symbol_size"] = symbol_size(annual["net"])
         annual["year_label"] = label
         return annual
 
-    view24 = prep(df24, "2024")
-    views = {"2024": view24}
-    if df10 is not None:
-        views["2010"] = prep(df10, "2010")
+    views = {label: prep(df, label) for label, df in datasets.items()}
 
-    # Consistent colors across years
     max_abs = max(v["net"].abs().max() for v in views.values())
     max_abs = float(max(1, max_abs))
 
@@ -115,45 +121,74 @@ def build_map_with_year_toggle(
             locations=df["geo_region"],
             featureidkey=GEOJSON_FEATURE_KEY,
             z=df["net"],
-            customdata=df[["region","arrivals","departures","net"]].to_numpy(),
+            customdata=df[["region", "arrivals", "departures", "net"]].to_numpy(),
             hovertemplate="<b>%{customdata[0]}</b><br>Arrivals: %{customdata[1]:,}"
                           "<br>Departures: %{customdata[2]:,}<br>Net: %{customdata[3]:,}<extra></extra>",
             coloraxis="coloraxis",
             marker=dict(line=dict(width=0.8, color="#4c4c4c")),
-            name="", showscale=False
+            name="",
+            showscale=False,
         )
         cities = df.loc[df["region"].isin(CITY_REGIONS)]
         scatter = go.Scattergeo(
-            lon=cities["longitude"], lat=cities["latitude"],
-            customdata=cities[["region","arrivals","departures","net"]].to_numpy(),
-            marker=dict(size=cities["symbol_size"], color=cities["net"], coloraxis="coloraxis",
-                        line=dict(width=0.6, color="#333")),
+            lon=cities["longitude"],
+            lat=cities["latitude"],
+            customdata=cities[["region", "arrivals", "departures", "net"]].to_numpy(),
+            marker=dict(
+                size=cities["symbol_size"],
+                color=cities["net"],
+                coloraxis="coloraxis",
+                line=dict(width=0.6, color="#333"),
+            ),
             hovertemplate="<b>%{customdata[0]}</b><br>Arrivals: %{customdata[1]:,}"
                           "<br>Departures: %{customdata[2]:,}<br>Net: %{customdata[3]:,}<extra></extra>",
-            name="", showlegend=False
+            name="",
+            showlegend=False,
         )
         return [choro, scatter]
 
-    init_year = "2024"
+    init_year = next(iter(views))
     fig = go.Figure(data=frame_traces(views[init_year]))
-    fig.frames = [go.Frame(name=year, data=frame_traces(df),
-                           layout=go.Layout(title_text=f"Internal migration — {year}"))
-                  for year, df in views.items()]
+    fig.frames = [
+        go.Frame(
+            name=year,
+            data=frame_traces(df),
+            layout=go.Layout(title_text=f"Internal migration — {year}"),
+        )
+        for year, df in views.items()
+    ]
 
     fig.update_geos(projection_type="mercator", fitbounds="locations", visible=False)
     fig.update_layout(
         title=f"Internal migration — {init_year}",
-        coloraxis=dict(colorscale=["#b30000","#fef0d9","#31a354"],
-                       cmin=-max_abs, cmax=max_abs,
-                       colorbar=dict(title="Net migration", ticksuffix=" people")),
-        margin=dict(l=0,r=0,t=50,b=0),
-        updatemenus=[dict(
-            type="dropdown", x=0.01, y=1.12, xanchor="left",
-            buttons=[dict(label=yr, method="animate",
-                          args=[[yr], {"frame":{"duration":0,"redraw":True},"mode":"immediate"}])
-                     for yr in views.keys()],
-            bgcolor="rgba(255,255,255,0.9)", bordercolor="#ddd"
-        )],
+        coloraxis=dict(
+            colorscale=["#b30000", "#fef0d9", "#31a354"],
+            cmin=-max_abs,
+            cmax=max_abs,
+            colorbar=dict(title="Net migration", ticksuffix=" people"),
+        ),
+        margin=dict(l=0, r=0, t=60, b=0),
+        dragmode="zoom",
+        updatemenus=[
+            dict(
+                type="dropdown",
+                x=0.02,
+                y=0.97,
+                xanchor="left",
+                yanchor="top",
+                pad=dict(t=6, l=4, r=4, b=4),
+                buttons=[
+                    dict(
+                        label=yr,
+                        method="animate",
+                        args=[[yr], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
+                    )
+                    for yr in views.keys()
+                ],
+                bgcolor="rgba(255,255,255,0.95)",
+                bordercolor="#ddd",
+            )
+        ],
     )
     return fig
 
@@ -232,6 +267,8 @@ def main():
 
     # Load core datasets
     df24 = pd.read_csv(DATA / "internal_migration_2024.csv")
+    df23 = read_csv_safe(DATA / "internal_migration_2023.csv")
+    df22 = read_csv_safe(DATA / "internal_migration_2022.csv")
     df10 = read_csv_safe(DATA / "internal_migration_2010.csv")
     centroids = pd.read_csv(DATA / "region_centroids.csv")
     geo = load_geojson()
@@ -241,8 +278,21 @@ def main():
     hook_line = total_movers_text(annual24)
 
     # Build figures
-    fig_map = build_map_with_year_toggle(df24, df10, centroids, geo)
-    map_html = fig_map.to_html(full_html=False, include_plotlyjs="cdn", div_id="map_hero")
+    datasets = {"2024": df24}
+    if df23 is not None:
+        datasets["2023"] = df23
+    if df22 is not None:
+        datasets["2022"] = df22
+    if df10 is not None:
+        datasets["2010"] = df10
+
+    fig_map = build_map_with_year_toggle(datasets, centroids, geo)
+    map_html = fig_map.to_html(
+        full_html=False,
+        include_plotlyjs="cdn",
+        div_id="map_hero",
+        config=MAP_CONFIG,
+    )
 
     # Data storytelling: optional Sankey & small charts
     sankey_html_blocks = []
@@ -311,7 +361,7 @@ def main():
   <!-- 3. DATA STORYTELLING -->
   <div class="section">
     <h2>Data Storytelling</h2>
-    <p>Hover the map to see net migration by oblast. Use the dropdown to compare 2010 vs 2024 (if 2010 data is available).</p>
+    <p>Hover the map to see net migration by oblast. Use the dropdown to explore 2022–2024 (and 2010 if available).</p>
     <div class="grid">
       <div class="card" style="grid-column: 1 / -1;">
         <h3>Origin–Destination Flows</h3>
