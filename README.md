@@ -3,9 +3,7 @@
 This repository packages a lightweight, text-only version of the 2024
 internal migration statistics for Kazakhstan together with a small Python
 utility that renders an interactive flow map.  The previous iteration of
-this project relied on spreadsheet workbooks; those binary assets have been
-replaced with CSV files so the project can be reviewed in pull requests
-without large binary diffs.
+this project relied on spreadsheet workbooks.
 
 ## Project structure
 
@@ -15,7 +13,7 @@ without large binary diffs.
 │   └── region_centroids.csv          # lat/long coordinates for the map
 ├── outputs/                          # generated HTML maps (gitignored)
 ├── scripts/
-│   └── plot_internal_migration.py    # CLI for building the map
+│   └── plot_internal_migration.py    # building the map
 └── requirements.txt                  # runtime dependencies
 ```
 
@@ -35,11 +33,3 @@ without large binary diffs.
    python scripts/plot_internal_migration.py
    ```
 
-   You can also focus on a specific month, for example August:
-
-   ```bash
-   python scripts/plot_internal_migration.py --month august --output outputs/migration_map_august.html
-   ```
-
-Open the generated HTML file in a browser to explore regional arrivals,
-departures, and net migration figures.
