@@ -1,5 +1,5 @@
 """
-Internal Migration in Kazakhstan — Research Dashboard (2024, optional 2010)
+Internal Migration in Kazakhstan — Research Dashboard (2022–2024, optional 2010)
 
 Sections:
 1) Opening Hook: hero map + one-line kicker.
@@ -7,11 +7,13 @@ Sections:
 3) Data Storytelling: interactive map (hover), year toggle (2022–2024, 2010 if available),
    OD Sankey (if data present), small charts (age/sex).
 4) Critical Themes: short commentary bullets.
-5) What-If: simple projection to 2030 with adjustable annual trend.
+5) What-If: simple projection to 2030 with adjustable annual trend (baseline year selectable).
 6) Concluding Insight: compact takeaway.
 
 Data files (CSV, tidy):
 - data/internal_migration_2024.csv : region,month,arrivals,departures
+- data/internal_migration_2023.csv : region,month,arrivals,departures   (optional)
+- data/internal_migration_2022.csv : region,month,arrivals,departures   (optional)
 - data/internal_migration_2010.csv : region,month,arrivals,departures   (optional)
 - data/region_centroids.csv        : region,latitude,longitude
 - data/kz.json                     : GeoJSON regions
@@ -41,7 +43,10 @@ GEOJSON_PATH = DATA / "kz.json"
 GEOJSON_FEATURE_KEY = "properties.name"
 
 CITY_REGIONS = {"Astana city", "Almaty city", "Shymkent city"}
-MONTHS = ["january","february","march","april","may","june","july","august","september","october","november","december"]
+MONTHS = [
+    "january","february","march","april","may","june",
+    "july","august","september","october","november","december"
+]
 
 NAME_OVERRIDES = {
     "Abay": "Abai","Aqmola": "Akmola","Aqtobe": "Aktobe","Almaty region": "Almaty",
@@ -76,20 +81,28 @@ def norm_regions_for_geojson(df: pd.DataFrame, geo: dict) -> pd.DataFrame:
     return df.assign(geo_region=geo_regions)
 
 def symbol_size(values: pd.Series) -> pd.Series:
-    """Return a smaller point size for city markers on the map."""
+    # modest bubble sizing for cities
     return 6 + 0.18 * np.sqrt(values.abs())
 
 def aggregate_months(df: pd.DataFrame, months: List[str]) -> pd.DataFrame:
-    mask = df["month"].str.lower().isin(months)
-    agg = (df.loc[mask]
-             .groupby("region", as_index=False)[["arrivals","departures"]].sum())
+    # robust to different month labels; if none match, use all rows
+    if "month" in df.columns:
+        mcol = df["month"].astype(str).str.lower()
+        mask = mcol.isin(months)
+        use = df.loc[mask].copy() if mask.any() else df.copy()
+    else:
+        use = df.copy()
+
+    agg = (
+        use.groupby("region", as_index=False)[["arrivals","departures"]]
+           .sum()
+    )
     agg["net"] = agg["arrivals"] - agg["departures"]
     return agg
 
-def total_movers_text(df_annual: pd.DataFrame) -> str:
-    # A soft estimate: sum of arrivals across regions (each mover counted once)
+def total_movers_text(df_annual: pd.DataFrame, year_label: str) -> str:
     movers = int(df_annual["arrivals"].sum())
-    return f"Every year tens of thousands move within Kazakhstan. (≈{movers:,} arrivals recorded in 2024.)"
+    return f"Every year tens of thousands move within Kazakhstan. (≈{movers:,} arrivals recorded in {year_label}.)"
 
 # -------------------------
 # MAP with Year Toggle (frames)
@@ -99,6 +112,16 @@ def build_map_with_year_toggle(
 ) -> go.Figure:
     if not datasets:
         raise ValueError("At least one annual dataset is required to render the map.")
+
+    # Sort years numerically where possible so dropdown order is nice
+    def _year_key(k: str):
+        try:
+            return int(k)
+        except:
+            return -10**9  # non-numeric first
+
+    ordered_items = sorted(datasets.items(), key=lambda kv: _year_key(kv[0]))
+    views: Dict[str, pd.DataFrame] = {}
 
     def prep(df_raw: pd.DataFrame, label: str) -> pd.DataFrame:
         annual = aggregate_months(df_raw, MONTHS).merge(centroids, on="region", how="left")
@@ -110,10 +133,10 @@ def build_map_with_year_toggle(
         annual["year_label"] = label
         return annual
 
-    views = {label: prep(df, label) for label, df in datasets.items()}
+    for label, df in ordered_items:
+        views[label] = prep(df, label)
 
-    max_abs = max(v["net"].abs().max() for v in views.values())
-    max_abs = float(max(1, max_abs))
+    max_abs = float(max(1, max(v["net"].abs().max() for v in views.values())))
 
     def frame_traces(df: pd.DataFrame):
         choro = go.Choropleth(
@@ -122,8 +145,10 @@ def build_map_with_year_toggle(
             featureidkey=GEOJSON_FEATURE_KEY,
             z=df["net"],
             customdata=df[["region", "arrivals", "departures", "net"]].to_numpy(),
-            hovertemplate="<b>%{customdata[0]}</b><br>Arrivals: %{customdata[1]:,}"
-                          "<br>Departures: %{customdata[2]:,}<br>Net: %{customdata[3]:,}<extra></extra>",
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+                          "Arrivals: %{customdata[1]:,}<br>"
+                          "Departures: %{customdata[2]:,}<br>"
+                          "Net: %{customdata[3]:,}<extra></extra>",
             coloraxis="coloraxis",
             marker=dict(line=dict(width=0.8, color="#4c4c4c")),
             name="",
@@ -140,14 +165,18 @@ def build_map_with_year_toggle(
                 coloraxis="coloraxis",
                 line=dict(width=0.6, color="#333"),
             ),
-            hovertemplate="<b>%{customdata[0]}</b><br>Arrivals: %{customdata[1]:,}"
-                          "<br>Departures: %{customdata[2]:,}<br>Net: %{customdata[3]:,}<extra></extra>",
+            hovertemplate="<b>%{customdata[0]}</b><br>"
+                          "Arrivals: %{customdata[1]:,}<br>"
+                          "Departures: %{customdata[2]:,}<br>"
+                          "Net: %{customdata[3]:,}<extra></extra>",
             name="",
             showlegend=False,
         )
         return [choro, scatter]
 
-    init_year = next(iter(views))
+    # start on the latest year (the last key after sorting)
+    init_year = list(views.keys())[-1]
+
     fig = go.Figure(data=frame_traces(views[init_year]))
     fig.frames = [
         go.Frame(
@@ -196,67 +225,77 @@ def build_map_with_year_toggle(
 # Sankey (OD flows)
 # -------------------------
 def build_sankey(df_od: pd.DataFrame, title: str) -> go.Figure:
-    # Build node list
     regions = sorted(set(df_od["origin"]).union(set(df_od["destination"])))
-    idx = {r:i for i,r in enumerate(regions)}
+    idx = {r: i for i, r in enumerate(regions)}
     link = dict(
         source=df_od["origin"].map(idx),
         target=df_od["destination"].map(idx),
-        value=df_od["count"]
+        value=df_od["count"],
     )
     fig = go.Figure(go.Sankey(
         arrangement="snap",
         node=dict(label=regions, pad=12, thickness=12),
         link=link
     ))
-    fig.update_layout(title=title, margin=dict(l=10,r=10,t=40,b=10))
+    fig.update_layout(title=title, margin=dict(l=10, r=10, t=40, b=10))
     return fig
 
 # -------------------------
 # Small charts (age/sex)
 # -------------------------
 def build_age_bar(df_age: pd.DataFrame) -> go.Figure:
-    # Expect columns: region, age_group, value (net or arrivals)
     order = ["0-14","15-24","25-34","35-44","45-54","55-64","65+"]
     df = df_age.copy()
     if "age_group" in df and set(order).issuperset(set(df["age_group"].unique())):
         df["age_group"] = pd.Categorical(df["age_group"], order, ordered=True)
-    fig = px.bar(df, x="age_group", y="value", color="region", barmode="group",
-                 labels={"value":"Migrants","age_group":"Age group"},
-                 title="Migration by age group (2024)")
-    fig.update_layout(margin=dict(l=10,r=10,t=50,b=20), legend_title="")
+    fig = px.bar(
+        df, x="age_group", y="value", color="region", barmode="group",
+        labels={"value": "Migrants", "age_group": "Age group"},
+        title="Migration by age group (selected year)"
+    )
+    fig.update_layout(margin=dict(l=10, r=10, t=50, b=20), legend_title="")
     return fig
 
 def build_sex_bar(df_sex: pd.DataFrame) -> go.Figure:
-    # Expect columns: region, sex, value
     df = df_sex.copy()
-    fig = px.bar(df, x="sex", y="value", color="region", barmode="group",
-                 labels={"value":"Migrants","sex":"Sex"},
-                 title="Migration by sex (2024)")
-    fig.update_layout(margin=dict(l=10,r=10,t=50,b=20), legend_title="")
+    fig = px.bar(
+        df, x="sex", y="value", color="region", barmode="group",
+        labels={"value": "Migrants", "sex": "Sex"},
+        title="Migration by sex (selected year)"
+    )
+    fig.update_layout(margin=dict(l=10, r=10, t=50, b=20), legend_title="")
     return fig
 
 # -------------------------
-# What-If projection (to 2030)
+# What-If projection (to 2030) — baseline year selectable
 # -------------------------
-def build_projection(df24_annual: pd.DataFrame, region_default: str = "Astana") -> go.Figure:
+def build_projection(bases: Dict[str, pd.DataFrame], default_region: str = "Astana") -> go.Figure:
     """
-    Very simple scenario: assume an annual percentage change in net migration (slider via HTML),
-    but here we prep a base trace for 0% change; HTML will add a little JS to update.
+    Prepare a single trace; JS will swap region/year and recompute cumulative curve.
+    We embed per-year base nets in layout.meta for the front-end updater.
     """
-    # Base: cumulative net = constant 2024 net each year
-    years = list(range(2024, 2031))
-    base = df24_annual.set_index("region")["net"].to_dict()
-    region = region_default if region_default in base else next(iter(base.keys()))
-    y = [base[region]*(i-2023) for i in years]  # cumulative
-    fig = go.Figure(go.Scatter(x=years, y=y, mode="lines+markers", name=region))
+    # Build base net dicts per year
+    meta_base = {}
+    for y, df in bases.items():  # y like "2022"/"2023"/"2024"
+        annual = df[["region", "net"]].set_index("region")["net"].to_dict()
+        meta_base[y] = annual
+
+    # Choose display defaults (prefer 2024 if present)
+    start_year = "2024" if "2024" in meta_base else sorted(meta_base.keys())[-1]
+    region = default_region if default_region in meta_base[start_year] else next(iter(meta_base[start_year].keys()))
+    net0 = meta_base[start_year][region]
+
+    # initial x/y (will be replaced by JS anyway)
+    years = list(range(int(start_year), 2031))
+    cum = [net0 * (i) for i in range(len(years))]
+
+    fig = go.Figure(go.Scatter(x=years, y=cum, mode="lines+markers", name=f"{region} ({start_year})"))
     fig.update_layout(
-        title=f"Simple projection of cumulative net migration — {region} (to 2030)",
-        xaxis_title="Year", yaxis_title="Cumulative net migration since 2024",
-        margin=dict(l=40,r=10,t=50,b=40)
+        title=f"Simple projection of cumulative net migration — {region} ({start_year}) to 2030",
+        xaxis_title="Year", yaxis_title=f"Cumulative net migration since {start_year}",
+        margin=dict(l=40, r=10, t=50, b=40),
+        meta=dict(base_net_by_year=meta_base)  # embed for JS
     )
-    # store per-region base in figure JSON for small JS updater
-    fig.update_layout(meta=dict(base_net=base))
     return fig
 
 # -------------------------
@@ -266,26 +305,29 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
 
     # Load core datasets
-    df24 = pd.read_csv(DATA / "internal_migration_2024.csv")
+    df24 = read_csv_safe(DATA / "internal_migration_2024.csv")
     df23 = read_csv_safe(DATA / "internal_migration_2023.csv")
     df22 = read_csv_safe(DATA / "internal_migration_2022.csv")
     df10 = read_csv_safe(DATA / "internal_migration_2010.csv")
     centroids = pd.read_csv(DATA / "region_centroids.csv")
     geo = load_geojson()
 
-    # Hook text (uses arrivals sum across 2024)
-    annual24 = aggregate_months(df24, MONTHS)
-    hook_line = total_movers_text(annual24)
+    # Build datasets dict for the map (only non-empty)
+    datasets: Dict[str, pd.DataFrame] = {}
+    if df22 is not None: datasets["2022"] = df22
+    if df23 is not None: datasets["2023"] = df23
+    if df24 is not None: datasets["2024"] = df24
+    if df10 is not None: datasets["2010"] = df10
+
+    if not datasets:
+        raise RuntimeError("No internal_migration_*.csv files found.")
+
+    # Hook text uses the latest available numeric year for punchy number
+    latest_year = max(int(y) for y in datasets.keys() if y.isdigit())
+    annual_latest = aggregate_months(datasets[str(latest_year)], MONTHS)
+    hook_line = total_movers_text(annual_latest, str(latest_year))
 
     # Build figures
-    datasets = {"2024": df24}
-    if df23 is not None:
-        datasets["2023"] = df23
-    if df22 is not None:
-        datasets["2022"] = df22
-    if df10 is not None:
-        datasets["2010"] = df10
-
     fig_map = build_map_with_year_toggle(datasets, centroids, geo)
     map_html = fig_map.to_html(
         full_html=False,
@@ -298,34 +340,38 @@ def main():
     sankey_html_blocks = []
     od24 = read_csv_safe(DATA / "od_flows_2024.csv")
     if od24 is not None and not od24.empty:
-        sankey_html_blocks.append(build_sankey(od24, "Origin–destination flows (2024)")
-                                  .to_html(full_html=False, include_plotlyjs=False, div_id="sankey24"))
+        sankey_html_blocks.append(
+            build_sankey(od24, "Origin–destination flows (2024)")
+            .to_html(full_html=False, include_plotlyjs=False, div_id="sankey24")
+        )
     od10 = read_csv_safe(DATA / "od_flows_2010.csv")
     if od10 is not None and not od10.empty:
-        sankey_html_blocks.append(build_sankey(od10, "Origin–destination flows (2010)")
-                                  .to_html(full_html=False, include_plotlyjs=False, div_id="sankey10"))
+        sankey_html_blocks.append(
+            build_sankey(od10, "Origin–destination flows (2010)")
+            .to_html(full_html=False, include_plotlyjs=False, div_id="sankey10")
+        )
     sankey_html = "\n".join(sankey_html_blocks) if sankey_html_blocks else \
         '<p class="muted">Origin–destination flow data not found — add <code>od_flows_*.csv</code> to enable Sankey.</p>'
 
-    age_html = ''
     df_age = read_csv_safe(DATA / "migration_by_age_2024.csv")
-    if df_age is not None and not df_age.empty:
-        age_html = build_age_bar(df_age).to_html(full_html=False, include_plotlyjs=False, div_id="agebar")
-    else:
-        age_html = '<p class="muted">Age-group breakdown not found — add <code>migration_by_age_2024.csv</code>.</p>'
+    age_html = build_age_bar(df_age).to_html(full_html=False, include_plotlyjs=False, div_id="agebar") \
+        if (df_age is not None and not df_age.empty) \
+        else '<p class="muted">Age-group breakdown not found — add <code>migration_by_age_2024.csv</code>.</p>'
 
-    sex_html = ''
     df_sex = read_csv_safe(DATA / "migration_by_sex_2024.csv")
-    if df_sex is not None and not df_sex.empty:
-        sex_html = build_sex_bar(df_sex).to_html(full_html=False, include_plotlyjs=False, div_id="sexbar")
-    else:
-        sex_html = '<p class="muted">Sex breakdown not found — add <code>migration_by_sex_2024.csv</code>.</p>'
+    sex_html = build_sex_bar(df_sex).to_html(full_html=False, include_plotlyjs=False, div_id="sexbar") \
+        if (df_sex is not None and not df_sex.empty) \
+        else '<p class="muted">Sex breakdown not found — add <code>migration_by_sex_2024.csv</code>.</p>'
 
-    # What-If projection
-    proj_fig = build_projection(annual24)
+    # What-If projection (supports 2022/2023/2024 baselines)
+    bases_for_projection: Dict[str, pd.DataFrame] = {}
+    for y in ["2022", "2023", "2024"]:
+        if y in datasets:
+            bases_for_projection[y] = aggregate_months(datasets[y], MONTHS)
+    proj_fig = build_projection(bases_for_projection)
     proj_html = proj_fig.to_html(full_html=False, include_plotlyjs=False, div_id="projection")
 
-    # HTML skeleton
+    # HTML skeleton (with patched JS)
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -340,6 +386,7 @@ def main():
   .section {{ margin: 22px 0 28px; }}
   .grid {{ display: grid; gap: 16px; grid-template-columns: repeat(auto-fit,minmax(320px,1fr)); }}
   .card {{ border:1px solid #e5e7eb; border-radius:12px; padding:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }}
+  label {{ font-size:14px; }}
 </style>
 </head>
 <body>
@@ -355,7 +402,8 @@ def main():
   <!-- 2. CONTEXT & CRITICAL INSIGHT -->
   <div class="section">
     <h2>Why do Astana and Almaty attract so many migrants — and what does this mean for the regions they leave?</h2>
-    <p class="muted">Add literature review here (drivers: wages, universities, services; sending-region effects; selection; temporary vs permanent, etc.).</p>
+    <p class="muted">According to demographic forecasts, by 2050, approximately one-third of Kazakhstan’spopulation is expected to reside in megacities such as Astana and Almaty, while many regions,particularly peripheral areas, are anticipated to experience significant population decline (Kasenov& Nurmagambetov, 2017). Similar findings are supported by reports from the Ministry of NationalEconomy of Kazakhstan (2020) and the World Urbanization Prospects, 2018 Revision, publishedby the United Nations Department of Economic and Social Affairs (2018).
+</p>
   </div>
 
   <!-- 3. DATA STORYTELLING -->
@@ -393,13 +441,18 @@ def main():
   <div class="section">
     <h2>What If?</h2>
     <div class="card">
-      <label>Region:
-        <select id="regionSelect"></select>
-      </label>
-      <label style="margin-left:12px;">Annual change in net migration:
-        <input id="rateInput" type="range" min="-20" max="20" value="0" step="1"/>
-        <span id="rateLabel">0%</span>
-      </label>
+      <div style="margin-bottom:8px;">
+        <label>Baseline year:
+          <select id="yearSelect"></select>
+        </label>
+        <label style="margin-left:12px;">Region:
+          <select id="regionSelect"></select>
+        </label>
+        <label style="margin-left:12px;">Annual change in net migration:
+          <input id="rateInput" type="range" min="-20" max="20" value="0" step="1"/>
+          <span id="rateLabel">0%</span>
+        </label>
+      </div>
       {proj_html}
       <p id="projNote" class="muted" style="margin-top:6px;"></p>
     </div>
@@ -414,50 +467,81 @@ def main():
 </div>
 
 <script>
-  // === What-If: tiny client-side updater using meta embedded in the projection figure ===
+  // === What-If: client-side updater using per-year base nets in layout.meta ===
   (function() {{
-    const fig = window.document.getElementById("projection");
+    const fig = document.getElementById("projection");
     if (!fig) return;
-    // Plotly embeds figure data in a script tag near the div; use Plotly API to read back
-    const gd = fig;  // the graph div itself
-    const base = (gd.layout.meta && gd.layout.meta.base_net) ? gd.layout.meta.base_net : null;
-    if (!base) return;
+    const gd = fig;
+    const meta = gd.layout.meta || {{}};
+    const baseByYear = meta.base_net_by_year || {{}};
+    const yearsAvail = Object.keys(baseByYear).sort();   // e.g., ["2022","2023","2024"]
 
-    // Populate region dropdown
-    const regions = Object.keys(base).sort();
-    const sel = document.getElementById("regionSelect");
-    regions.forEach(r => {{
+    const yearSel  = document.getElementById("yearSelect");
+    const regionSel= document.getElementById("regionSelect");
+    const rateInput= document.getElementById("rateInput");
+    const rateLabel= document.getElementById("rateLabel");
+    const note     = document.getElementById("projNote");
+
+    // Populate baseline-year dropdown (prefer 2024 if present)
+    yearsAvail.forEach(y => {{
       const opt = document.createElement("option");
-      opt.value = r; opt.textContent = r;
-      sel.appendChild(opt);
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
     }});
-    sel.value = regions.includes("Astana") ? "Astana" : regions[0];
+    if (yearsAvail.includes("2024")) yearSel.value = "2024";
 
-    const rateInput = document.getElementById("rateInput");
-    const rateLabel = document.getElementById("rateLabel");
-    const note = document.getElementById("projNote");
-
-    function recompute() {{
-      const region = sel.value;
-      const r = parseFloat(rateInput.value) / 100.0;
-      rateLabel.textContent = (r*100).toFixed(0) + "%";
-      const years = [2024,2025,2026,2027,2028,2029,2030];
-      const net0 = base[region] || 0;
-      // geometric change of annual net; cumulative sum over years
-      let annuals = years.map((_,i)=> net0 * Math.pow(1+r, i));
-      let cum = [];
-      annuals.reduce((acc,v,idx)=> (cum[idx]=acc+v, acc+v), 0);
-
-      Plotly.restyle(gd, {{"x":[years], "y":[cum], "name":[region]}}, [0]);
-
-      // quick narrative: relative to 2024 net times (years)
-      const total2030 = cum[cum.length-1] || 0;
-      note.textContent = region + " cumulative net by 2030: " + Math.round(total2030).toLocaleString('en-US') + " people"
-        + " (assumes constant composition; slider applies ±% change to annual net).";
+    function populateRegions() {{
+      const y = yearSel.value;
+      const base = baseByYear[y] || {{}};
+      const regions = Object.keys(base).sort();
+      regionSel.innerHTML = "";
+      regions.forEach(r => {{
+        const opt = document.createElement("option");
+        opt.value = r; opt.textContent = r;
+        regionSel.appendChild(opt);
+      }});
+      if (regions.includes("Astana")) regionSel.value = "Astana";
+      else if (regions.length) regionSel.value = regions[0];
     }}
 
+    function recompute() {{
+      const y0Str = yearSel.value;
+      const y0    = parseInt(y0Str, 10);                 // baseline year (e.g., 2022)
+      const base  = baseByYear[y0Str] || {{}};
+      const region= regionSel.value;
+      const r     = parseFloat(rateInput.value) / 100.0; // annual % change
+
+      // Build dynamic years from baseline to 2030
+      const yearsX = Array.from({{length: Math.max(0, 2030 - y0) + 1}}, (_, i) => y0 + i);
+
+      // Annual nets with geometric change, then cumulative since baseline
+      const net0 = base[region] || 0;
+      const annuals = yearsX.map((_, i) => net0 * Math.pow(1 + r, i));
+      const cum = [];
+      annuals.reduce((acc, v, i) => (cum[i] = acc + v, acc + v), 0);
+
+      // Update the trace
+      Plotly.restyle(gd, {{ x: [yearsX], y: [cum], name: [`${{region}} (${{y0Str}})`] }}, [0]);
+
+      // Update title and y-axis label to reflect baseline
+      Plotly.relayout(gd, {{
+        title: `Simple projection of cumulative net migration — ${{region}} (${{y0Str}}) to 2030`,
+        "yaxis.title.text": `Cumulative net migration since ${{y0Str}}`
+      }});
+
+      // Narrative note
+      const total2030 = cum[cum.length - 1] || 0;
+      rateLabel.textContent = `${{(r * 100).toFixed(0)}}%`;
+      note.textContent = `${{region}} cumulative net by 2030: ${{Math.round(total2030).toLocaleString('en-US')}} people `
+        + `(baseline ${{y0Str}}; slider applies ±% change to annual net).`;
+    }}
+
+    yearSel.addEventListener("change", () => {{ populateRegions(); recompute(); }});
+    regionSel.addEventListener("change", recompute);
     rateInput.addEventListener("input", recompute);
-    sel.addEventListener("change", recompute);
+
+    // Init
+    populateRegions();
     recompute();
   }})();
 </script>
